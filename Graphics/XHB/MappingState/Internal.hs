@@ -47,12 +47,7 @@ data ButMask = Button1 | Button2 | Button3 | Button4 | Button5
     deriving (Show, Ord, Eq, Enum, Ix, Bounded)
 
 
-newtype ModMap = ModMap { getModMap :: KeyMask -> S.Set KEYCODE}
-
-instance Show ModMap where
-    show (ModMap modMap) = "fmap fromJust (flip lookup " ++ show assocs ++ ")"
-      where assocs = [(mod, modMap mod) | mod <- [minBound..maxBound]]
-
+type ModMap = KeyMask -> S.Set KEYCODE
 
 type KeyMap = Array KEYCODE [KEYSYM]
 
@@ -87,7 +82,7 @@ updateKeyMap (MkGetKeyboardMapping first count) (MkGetKeyboardMappingReply n sym
 
 createModMap :: GetModifierMappingReply -> ModMap
 createModMap (MkGetModifierMappingReply n codes) =
-    ModMap $ (!!) (map (S.fromList . filter (/= 0)) (chunksOf n codes)) . fromEnum
+    (!!) (map (S.fromList . filter (/= 0)) (chunksOf n codes)) . fromEnum
 
 
 createPointerMap :: GetPointerMappingReply -> PointerMap
@@ -102,21 +97,32 @@ data MappingState = MappingState
     { modMap :: ModMap
     , keyMap :: KeyMap
     , pointerMap :: PointerMap
-    } deriving Show
+    }
+
+instance Show MappingState where
+    show (MappingState modMap keyMap pointerMap) =
+        "MappingState { modMap = " ++ showModMap
+                  ++ ", keyMap = " ++ show keyMap
+                  ++ ", pointerMap = " ++ show pointerMap
+                 ++ " }"
+      where
+        showModMap = "fmap fromJust (flip lookup " ++ show assocs ++ ")"
+        assocs = [(mod, modMap mod) | mod <- [minBound..maxBound]]
 
 
-initMapState :: MonadIO m => X m MappingState
+
+initMapState :: MonadX x m => m MappingState
 initMapState = do
     setup <- asksX connectionSetup
     let minCode = min_keycode_Setup setup
         maxCode = max_keycode_Setup setup
         getkm = MkGetKeyboardMapping minCode (maxCode - minCode + 1)
-    join . runIOU $ MappingState <$> (createModMap <$> IOU (reqAsync MkGetModifierMapping))
-                                 <*> (createKeyMap getkm <$> IOU (reqAsync getkm))
-                                 <*> (createPointerMap <$> IOU (reqAsync MkGetPointerMapping))
+    doX $ MappingState <$> createModMap <$- MkGetModifierMapping
+                       <*> createKeyMap getkm <$- getkm
+                       <*> createPointerMap <$- MkGetPointerMapping
 
 
-updateMapState :: MonadIO m => MappingNotifyEvent -> X m (MappingState -> MappingState)
+updateMapState :: MonadX x m => MappingNotifyEvent -> m (MappingState -> MappingState)
 
 updateMapState (MkMappingNotifyEvent MappingModifier _ _) =
     go <$> req MkGetModifierMapping
