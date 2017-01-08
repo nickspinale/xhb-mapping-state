@@ -33,10 +33,6 @@ import qualified Data.Map as M
 import qualified Data.Set as S
 
 
-noSymbol :: KEYSYM
-noSymbol = 0
-
-
 -- TYPES --
 
 

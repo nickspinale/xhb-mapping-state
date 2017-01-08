@@ -1,9 +1,9 @@
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE OverlappingInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 
 module Graphics.XHB.MappingState
@@ -12,6 +12,13 @@ module Graphics.XHB.MappingState
     , runMappingT
     , MappingCtx(..)
     , getsMapping
+
+    , KeyMask
+    , ButMask
+    , ModMap
+    , KeyMap
+    , keyCodesOf
+    , noPointer
     ) where
 
 
@@ -28,23 +35,15 @@ import Control.Monad.Writer
 
 
 newtype MappingT m a = MappingT { unMappingT :: StateT MappingState m a }
-    deriving (Functor, Applicative, Monad, MonadIO, Typeable)
+    deriving (Functor, Applicative, Typeable, Monad, MonadIO, MonadTrans)
 
-instance MonadTrans MappingT where
-    lift = MappingT . lift
-
-instance MonadX x m => MonadX x (MappingT m) where
-    liftX = lift . liftX
-    askX = lift askX
-    catchErrorX m f = MappingT $ catchErrorX (unMappingT m) (unMappingT . f)
-
+deriving instance MonadX x m => MonadX x (MappingT m)
 
 runMappingT :: MonadX x m => MappingT m a -> m a
 runMappingT m = initMapState >>= evalStateT (unMappingT m)
 
 
--- Class --
-
+-- class --
 
 class Monad m => MappingCtx m where
     getMapping :: m MappingState
@@ -58,27 +57,16 @@ instance (MappingCtx m, MonadTrans t, Monad (t m)) => MappingCtx (t m) where
     getMapping = lift getMapping
     updateMapping = lift . updateMapping
 
-
 getsMapping :: MappingCtx m => (MappingState -> a) -> m a
 getsMapping = flip fmap getMapping
 
 
 -- mtl instances --
 
-
-instance MonadError e m => MonadError e (MappingT m) where
-    throwError = lift . throwError
-    catchError (MappingT m) f = MappingT $ catchError m (unMappingT . f)
-
-instance MonadReader r m => MonadReader r (MappingT m) where
-    ask = lift ask
-    local f = MappingT . local f . unMappingT
-
 instance MonadState s m => MonadState s (MappingT m) where
     get = lift get
     put = lift . put
 
-instance MonadWriter w m => MonadWriter w (MappingT m) where
-    tell = lift . tell
-    listen = MappingT . listen . unMappingT
-    pass = MappingT . pass . unMappingT
+deriving instance MonadError e m => MonadError e (MappingT m)
+deriving instance MonadReader r m => MonadReader r (MappingT m)
+deriving instance MonadWriter w m => MonadWriter w (MappingT m)
