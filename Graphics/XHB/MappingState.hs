@@ -7,18 +7,18 @@
 
 
 module Graphics.XHB.MappingState
-    ( MappingState(..)
-    , MappingT(..)
-    , runMappingT
-    , MappingCtx(..)
-    , getsMapping
-
+    (  MappingState(..)
     , KeyMask
     , ButMask
     , ModMap
     , KeyMap
     , keyCodesOf
     , noPointer
+
+    , MappingT(..)
+    , runMappingT
+    , MappingCtx(..)
+    , getsMapping
     ) where
 
 
@@ -35,7 +35,7 @@ import Control.Monad.Writer
 
 
 newtype MappingT m a = MappingT { unMappingT :: StateT MappingState m a }
-    deriving (Functor, Applicative, Typeable, Monad, MonadIO, MonadTrans)
+    deriving (Functor, Applicative, Monad, MonadIO, MonadTrans, Typeable)
 
 deriving instance MonadX x m => MonadX x (MappingT m)
 
@@ -43,7 +43,7 @@ runMappingT :: MonadX x m => MappingT m a -> m a
 runMappingT m = initMapState >>= evalStateT (unMappingT m)
 
 
--- class --
+-- Class --
 
 class Monad m => MappingCtx m where
     getMapping :: m MappingState
@@ -57,16 +57,16 @@ instance (MappingCtx m, MonadTrans t, Monad (t m)) => MappingCtx (t m) where
     getMapping = lift getMapping
     updateMapping = lift . updateMapping
 
+
 getsMapping :: MappingCtx m => (MappingState -> a) -> m a
 getsMapping = flip fmap getMapping
 
 
--- mtl instances --
-
-instance MonadState s m => MonadState s (MappingT m) where
-    get = lift get
-    put = lift . put
+-- MTL instances --
 
 deriving instance MonadError e m => MonadError e (MappingT m)
 deriving instance MonadReader r m => MonadReader r (MappingT m)
 deriving instance MonadWriter w m => MonadWriter w (MappingT m)
+
+instance MonadState s m => MonadState s (MappingT m) where
+    state = lift . state
