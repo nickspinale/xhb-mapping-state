@@ -54,6 +54,12 @@ MappingState :: ModMap -> KeyMap -> PointerMap -> MappingState
 [modMap] :: MappingState -> ModMap
 [keyMap] :: MappingState -> KeyMap
 [pointerMap] :: MappingState -> PointerMap
+data KeyMask
+data ButMask
+type ModMap = KeyMask -> Set KEYCODE
+type KeyMap = Array KEYCODE [KEYSYM]
+keyCodesOf :: KEYSYM -> KeyMap -> [KEYCODE]
+noPointer :: Pointer
 newtype MappingT m a
 MappingT :: StateT MappingState m a -> MappingT m a
 [unMappingT] :: MappingT m a -> StateT MappingState m a
@@ -62,15 +68,15 @@ class Monad m => MappingCtx m
 getMapping :: MappingCtx m => m MappingState
 updateMapping :: MappingCtx m => MappingNotifyEvent -> m ()
 getsMapping :: MappingCtx m => (MappingState -> a) -> m a
+instance Control.Monad.Trans.Class.MonadTrans Graphics.XHB.MappingState.MappingT
 instance Control.Monad.IO.Class.MonadIO m => Control.Monad.IO.Class.MonadIO (Graphics.XHB.MappingState.MappingT m)
 instance GHC.Base.Monad m => GHC.Base.Monad (Graphics.XHB.MappingState.MappingT m)
 instance GHC.Base.Monad m => GHC.Base.Applicative (Graphics.XHB.MappingState.MappingT m)
 instance GHC.Base.Functor m => GHC.Base.Functor (Graphics.XHB.MappingState.MappingT m)
-instance Control.Monad.Trans.Class.MonadTrans Graphics.XHB.MappingState.MappingT
 instance Graphics.XHB.Monad.MonadX x m => Graphics.XHB.Monad.MonadX x (Graphics.XHB.MappingState.MappingT m)
-instance Graphics.XHB.Monad.MonadX x m => Graphics.XHB.MappingState.MappingCtx (Graphics.XHB.MappingState.MappingT m)
-instance (Graphics.XHB.MappingState.MappingCtx m, Control.Monad.Trans.Class.MonadTrans t, GHC.Base.Monad (t m)) => Graphics.XHB.MappingState.MappingCtx (t m)
 instance Control.Monad.Error.Class.MonadError e m => Control.Monad.Error.Class.MonadError e (Graphics.XHB.MappingState.MappingT m)
 instance Control.Monad.Reader.Class.MonadReader r m => Control.Monad.Reader.Class.MonadReader r (Graphics.XHB.MappingState.MappingT m)
-instance Control.Monad.State.Class.MonadState s m => Control.Monad.State.Class.MonadState s (Graphics.XHB.MappingState.MappingT m)
 instance Control.Monad.Writer.Class.MonadWriter w m => Control.Monad.Writer.Class.MonadWriter w (Graphics.XHB.MappingState.MappingT m)
+instance Graphics.XHB.Monad.MonadX x m => Graphics.XHB.MappingState.MappingCtx (Graphics.XHB.MappingState.MappingT m)
+instance (Graphics.XHB.MappingState.MappingCtx m, Control.Monad.Trans.Class.MonadTrans t, GHC.Base.Monad (t m)) => Graphics.XHB.MappingState.MappingCtx (t m)
+instance Control.Monad.State.Class.MonadState s m => Control.Monad.State.Class.MonadState s (Graphics.XHB.MappingState.MappingT m)
